@@ -1,0 +1,22 @@
+{
+  "name": "sprint-report",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Web app to view Jira sprint reports (login, pick board, pick sprint, view report)",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.17.3",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

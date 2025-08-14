@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jira Sprint Report</title>
+    <style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { max-width: 100%; overflow-x: hidden; }
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #0b1020; color: #f1f5f9; width: 100%; }
+      header { background: #111827; padding: 16px; border-bottom: 1px solid #1f2937; }
+      header h1 { margin: 0; font-size: 18px; }
+  main { padding: 16px; margin: 0; max-width: none; width: 100%; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin-bottom: 16px; max-width: 100%; }
+      input, select, button { padding: 8px; border-radius: 6px; border: 1px solid #374151; background: #0b1020; color: #f1f5f9; }
+      input::placeholder { color: #9ca3af; }
+      label { display: block; font-size: 12px; color: #9ca3af; margin-bottom: 4px; }
+      .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+      .actions { display: flex; gap: 8px; }
+      .hidden { display: none; }
+  pre { white-space: pre-wrap; background: #0b1020; padding: 12px; border-radius: 6px; overflow-wrap: anywhere; word-break: break-word; max-width: 100%; }
+  details { max-width: 100%; overflow-x: hidden; }
+  table { max-width: 100%; }
+      .status-col { border: 1px dashed #374151; border-radius: 8px; padding: 8px; }
+      .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid #374151; font-size: 12px; color: #cbd5e1; }
+      .issue { border: 1px solid #1f2937; border-radius: 6px; padding: 8px; margin: 6px 0; background: #0b1020; }
+      a { color: #93c5fd; }
+  /* Make report table fit within viewport and wrap content */
+  #reportTable { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  #reportTable th, #reportTable td { padding: 6px; border-bottom: 1px solid #1f2937; white-space: normal; word-break: break-word; overflow-wrap: anywhere; }
+  #reportTable th { text-align: left; border-bottom: 1px solid #374151; }
+  /* Right-align numeric columns (9-11) */
+  #reportTable th:nth-child(9),
+  #reportTable th:nth-child(10),
+  #reportTable th:nth-child(11),
+  #reportTable td:nth-child(9),
+  #reportTable td:nth-child(10),
+  #reportTable td:nth-child(11) { text-align: right; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <h1 style="margin:0;">Jira Sprint Report</h1>
+        <button id="logoutBtn" class="hidden">Logout</button>
+      </div>
+    </header>
+    <main>
+      <section id="login-card" class="card">
+        <h2>Login</h2>
+        <div class="row">
+          <div>
+            <label for="domain">Jira Site (subdomain, host, or URL)</label>
+            <input id="domain" placeholder="your-domain | your-domain.atlassian.net | https://your-domain.atlassian.net" />
+          </div>
+          <div>
+            <label for="email">Email</label>
+            <input id="email" placeholder="name@example.com" />
+          </div>
+          <div>
+            <label for="token">API Token</label>
+            <input id="token" type="password" placeholder="Jira API token" />
+          </div>
+        </div>
+        <div class="actions" style="margin-top: 12px;">
+          <button id="loginBtn">Login</button>
+          <span id="loginStatus"></span>
+        </div>
+      </section>
+
+      <section id="boards-card" class="card hidden">
+        <h2>Select Board</h2>
+        <div class="row">
+          <div>
+            <label for="boardSelect">Boards</label>
+            <select id="boardSelect"></select>
+          </div>
+        </div>
+        <div class="actions" style="margin-top: 12px;">
+          <button id="loadSprintsBtn">Load Recent Sprints</button>
+          <span id="boardsStatus"></span>
+        </div>
+      </section>
+
+      <section id="sprints-card" class="card hidden">
+        <h2>Select Sprint</h2>
+        <div class="row">
+          <div>
+            <label for="sprintSelect">Sprints (26 most recent)</label>
+            <select id="sprintSelect"></select>
+          </div>
+        </div>
+        <div class="actions" style="margin-top: 12px;">
+          <button id="loadReportBtn">Load Sprint Report</button>
+          <span id="sprintsStatus"></span>
+        </div>
+      </section>
+
+      <section id="report-card" class="card hidden">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <h2 style="margin:0;">Sprint Report</h2>
+          <button id="copyBtn" title="Copy table for Sheets/Excel">Copy table</button>
+        </div>
+        <div id="reportSummary"></div>
+        <div style="overflow-x:hidden; overflow-y:auto; margin-top: 12px;">
+          <table id="reportTable">
+            <colgroup>
+              <col style="width:12ch;" />  <!-- Action -->
+              <col style="width:12ch;" />  <!-- Key -->
+              <col style="width:4ch;" />   <!-- Added -->
+              <!-- Summary column intentionally left without fixed width to take remaining space -->
+              <col />                        <!-- Summary -->
+              <col style="width:12ch;" />  <!-- Issue Type -->
+              <col style="width:10ch;" />  <!-- Priority -->
+              <col style="width:12ch;" />  <!-- Status -->
+              <col style="width:16ch;" />  <!-- Assignee -->
+              <col style="width:8ch;" />   <!-- Points Initial -->
+              <col style="width:8ch;" />   <!-- Points Final -->
+              <col style="width:8ch;" />   <!-- Points Change -->
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Key</th>
+                <th>Added</th>
+                <th>Summary</th>
+                <th>Issue Type</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Assignee</th>
+                <th style="text-align:right;">Points Initial</th>
+                <th style="text-align:right;">Points Final</th>
+                <th style="text-align:right;">Points Change</th>
+              </tr>
+            </thead>
+            <tbody id="reportTbody"></tbody>
+          </table>
+        </div>
+        <details style="margin-top: 12px;">
+          <summary>Raw JSON</summary>
+          <pre id="reportRaw"></pre>
+        </details>
+      </section>
+    </main>
+    <script>
+  const $ = sel => document.querySelector(sel);
+  let lastReportRows = [];
+  let jiraBase = '';
+
+      async function login() {
+        const domain = $('#domain').value.trim();
+        const email = $('#email').value.trim();
+        const apiToken = $('#token').value.trim();
+        $('#loginStatus').textContent = 'Logging in...';
+        const r = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain, email, apiToken })
+        });
+        if (!r.ok) {
+          const t = await r.text();
+          $('#loginStatus').textContent = 'Login failed';
+          alert('Login failed: ' + t);
+          return;
+        }
+  $('#loginStatus').textContent = 'Logged in';
+  $('#login-card').classList.add('hidden');
+  // fetch session info for baseUrl
+  const me = await (await fetch('/api/me')).json();
+  jiraBase = me.baseUrl;
+  $('#logoutBtn').classList.remove('hidden');
+  await loadBoards();
+      }
+
+      async function loadBoards() {
+        $('#boardsStatus').textContent = 'Loading boards...';
+        const r = await fetch('/api/boards');
+        if (!r.ok) { $('#boardsStatus').textContent = 'Failed to load boards'; return; }
+        const data = await r.json();
+        const sel = $('#boardSelect');
+        sel.innerHTML = '';
+  (data.boards || []).forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.id; opt.textContent = `${b.name} (${b.type})`;
+          sel.appendChild(opt);
+        });
+        $('#boards-card').classList.remove('hidden');
+        $('#boardsStatus').textContent = `Loaded ${data.boards?.length || 0} boards`;
+      }
+
+      async function loadSprints() {
+        const boardId = $('#boardSelect').value;
+        if (!boardId) return;
+        $('#sprintsStatus').textContent = 'Loading sprints...';
+        const r = await fetch(`/api/boards/${boardId}/sprints`);
+        if (!r.ok) { $('#sprintsStatus').textContent = 'Failed to load sprints'; return; }
+        const data = await r.json();
+        const sel = $('#sprintSelect');
+        sel.innerHTML = '';
+  (data.sprints || []).forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id; opt.textContent = `${s.name} [${s.state}]`;
+          sel.appendChild(opt);
+        });
+        $('#sprints-card').classList.remove('hidden');
+        $('#sprintsStatus').textContent = `Loaded ${data.sprints?.length || 0} sprints`;
+      }
+
+      async function loadReport() {
+        const sprintId = $('#sprintSelect').value;
+        if (!sprintId) return;
+        $('#report-card').classList.remove('hidden');
+        $('#reportSummary').textContent = 'Loading report...';
+        const r = await fetch(`/api/sprints/${sprintId}/report`);
+        if (!r.ok) { $('#reportSummary').textContent = 'Failed to load report'; return; }
+  const data = await r.json();
+        $('#reportRaw').textContent = JSON.stringify(data, null, 2);
+  const { rows, totals } = data;
+  lastReportRows = rows || [];
+        $('#reportSummary').innerHTML = `
+          <div class="row">
+            <div class="status-col"><strong>Completed:</strong> ${totals.completed ?? '-'}</div>
+            <div class="status-col"><strong>Not Completed:</strong> ${totals.notCompleted ?? '-'}</div>
+            <div class="status-col"><strong>Removed:</strong> ${totals.removed ?? '-'}</div>
+          </div>
+        `;
+        const tbody = $('#reportTbody');
+        tbody.innerHTML = '';
+  (rows || []).forEach(it => {
+          const tr = document.createElement('tr');
+          const td = (text, right=false) => {
+            const el = document.createElement('td');
+            el.style.padding = '6px';
+            el.style.borderBottom = '1px solid #1f2937';
+            if (right) el.style.textAlign = 'right';
+            el.textContent = text ?? '';
+            return el;
+          };
+          tr.appendChild(td(it.Action));
+
+        function toTSV(rows) {
+          const headers = [
+            'Action','Key','Added','Summary','Issue Type','Priority','Status','Assignee','Points Initial','Points Final','Points Change'
+          ];
+          const sanitize = (v) => {
+            if (v === null || v === undefined) return '';
+            const s = String(v);
+            // Replace tabs and newlines to keep TSV intact
+            return s.replace(/[\t\r\n]+/g, ' ').trim();
+          };
+          const lines = [headers.join('\t')];
+          for (const r of rows) {
+            const line = [
+              sanitize(r.Action),
+              sanitize(r.Key),
+              sanitize(r.Added),
+              sanitize(r.Summary),
+              sanitize(r.IssueType),
+              sanitize(r.Priority),
+              sanitize(r.Status),
+              sanitize(r.Assignee),
+              sanitize(r.PointsInitial),
+              sanitize(r.PointsFinal),
+              sanitize(r.PointsChange),
+            ].join('\t');
+            lines.push(line);
+          }
+          // Use CRLF for best Excel compatibility on Windows
+          return lines.join('\r\n');
+        }
+
+        async function copyReport() {
+          const rows = lastReportRows || [];
+          const tsv = toTSV(rows);
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(tsv);
+            } else {
+              // Fallback for older browsers
+              const ta = document.createElement('textarea');
+              ta.value = tsv;
+              ta.style.position = 'fixed';
+              ta.style.left = '-9999px';
+              document.body.appendChild(ta);
+              ta.focus();
+              ta.select();
+              document.execCommand('copy');
+              document.body.removeChild(ta);
+            }
+            const btn = $('#copyBtn');
+            const old = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = old; }, 1200);
+          } catch (e) {
+            alert('Copy failed: ' + e);
+          }
+        }
+
+        $('#copyBtn').addEventListener('click', copyReport);
+          const keyTd = document.createElement('td');
+          keyTd.style.padding = '6px';
+          keyTd.style.borderBottom = '1px solid #1f2937';
+          const a = document.createElement('a');
+          a.href = `${jiraBase}/browse/${it.Key}`;
+          a.textContent = it.Key;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          keyTd.appendChild(a);
+          tr.appendChild(keyTd);
+          tr.appendChild(td(it.Added));
+          tr.appendChild(td(it.Summary));
+          tr.appendChild(td(it.IssueType));
+          tr.appendChild(td(it.Priority));
+          tr.appendChild(td(it.Status));
+          tr.appendChild(td(it.Assignee));
+          tr.appendChild(td(it.PointsInitial != null ? String(it.PointsInitial) : '', true));
+          tr.appendChild(td(it.PointsFinal != null ? String(it.PointsFinal) : '', true));
+          tr.appendChild(td(it.PointsChange != null ? String(it.PointsChange) : '', true));
+          tbody.appendChild(tr);
+        });
+      }
+
+      $('#loginBtn').addEventListener('click', login);
+      $('#loadSprintsBtn').addEventListener('click', loadSprints);
+      $('#loadReportBtn').addEventListener('click', loadReport);
+      $('#logoutBtn').addEventListener('click', async () => {
+        await fetch('/api/logout', { method: 'POST' });
+        location.reload();
+      });
+    </script>
+  </body>
+</html>
