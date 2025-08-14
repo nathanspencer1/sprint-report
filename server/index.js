@@ -286,6 +286,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+// Health check
+app.get('/healthz', (req, res) => {
+  res.json({ ok: true, uptime: process.uptime() });
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });

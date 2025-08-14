@@ -37,6 +37,32 @@ $env:PORT=3000; $env:SESSION_SECRET="dev-secret"; npm start
 - App will start at: http://localhost:3000 (you may also see alternate ports used during development like 3001/3002)
 - For development with auto-restart: `npm run dev`
 
+## Deployment
+
+### Option 1: Render (free tier)
+This repo includes `render.yaml` for one‑click deploy.
+
+1. Push your code to GitHub.
+2. In Render, create a new Web Service from your repo and let it detect `render.yaml`.
+3. It will build from the Dockerfile and start on port 3000.
+4. Set environment variable `SESSION_SECRET` (Render will auto-generate if you keep generateValue: true).
+5. Health check path: `/healthz`.
+
+### Option 2: Docker
+
+Build and run locally:
+
+```powershell
+docker build -t sprint-report .
+docker run -p 3000:3000 -e SESSION_SECRET="prod-secret" --name sprint-report sprint-report
+```
+
+Then open http://localhost:3000.
+
+### Option 3: Azure App Service (container)
+
+Push the built image to a registry (e.g., ACR or Docker Hub), then create an App Service for Containers pointing at the image, with `PORT=3000` and `SESSION_SECRET` configured.
+
 ## Usage
 1. Open http://localhost:3000
 2. Enter:
@@ -57,6 +83,7 @@ Backend (proxied through same origin):
 - `GET /api/boards/:boardId/sprints` — paginates and returns the 26 most recent sprints (active/closed/future)
 - `GET /api/sprints/:sprintId/report` — returns a pragmatic sprint report payload
 - `POST /api/logout` — clears session
+- `GET /healthz` — simple health check for uptime monitoring
 
 ## Notes and limitations
 - Story points field:
